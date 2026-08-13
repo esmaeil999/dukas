@@ -13,7 +13,7 @@ jobs:
     strategy:
       fail-fast: false            # خرابی یک سال، بقیه را کنسل نکند
       matrix:
-        year: [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019]
+        year: [2010]
 
     steps:
       - name: Setup Node.js
@@ -31,12 +31,12 @@ jobs:
             -t tick \
             -f csv
 
-      - name: Compress CSV
-        run: gzip -9 ./download/*.csv
+      - name: Zip CSV (reduce size)
+        run: zip -9 -j eurusd-ticks-${{ matrix.year }}.zip ./download/*.csv
 
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ticks-${{ matrix.year }}
           name: EURUSD ticks ${{ matrix.year }}
-          files: ./download/*.csv.gz
+          files: ./eurusd-ticks-${{ matrix.year }}.zip
