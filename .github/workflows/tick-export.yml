@@ -7,10 +7,10 @@ on:
         description: "Instrument (e.g. EURUSD)"
         default: "EURUSD"
       from:
-        description: 'Start, GMT — "YYYY-MM-DD HH:mm:ss"'
+        description: 'Start, GMT — YYYY-MM-DD HH:mm:ss'
         default: "2025-01-01 00:00:00"
       to:
-        description: 'End, GMT — "YYYY-MM-DD HH:mm:ss"'
+        description: 'End, GMT — YYYY-MM-DD HH:mm:ss'
         default: "2025-01-02 00:00:00"
 
 jobs:
@@ -24,12 +24,7 @@ jobs:
           python-version: "3.12"
 
       - name: Download ticks and build CSV
-  run: |
-    python tick_exporter.py \
-      --instrument "${{ inputs.instrument }}" \
-      --start "${{ inputs.from }}" \
-      --to "${{ inputs.to }}" \
-      --out "${{ inputs.instrument }}_ticks.csv"
+        run: python tick_exporter.py --instrument "${{ inputs.instrument }}" --start "${{ inputs.from }}" --to "${{ inputs.to }}" --out "${{ inputs.instrument }}_ticks.csv"
 
       - name: Zip result
         run: zip -9 "${{ inputs.instrument }}_ticks.zip" "${{ inputs.instrument }}_ticks.csv"
