@@ -1,0 +1,42 @@
+name: Tick Export
+
+on:
+  workflow_dispatch:
+    inputs:
+      instrument:
+        description: "Instrument (e.g. EURUSD)"
+        default: "EURUSD"
+      from:
+        description: 'Start, GMT — "YYYY-MM-DD HH:mm:ss"'
+        default: "2015-01-01 00:00:00"
+      to:
+        description: 'End, GMT — "YYYY-MM-DD HH:mm:ss"'
+        default: "2015-02-02 00:00:00"
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download ticks and build CSV
+        run: |
+          python tick_exporter.py \
+            --instrument "${{ inputs.instrument }}" \
+            --from "${{ inputs.from }}" \
+            --to "${{ inputs.to }}" \
+            --out "${{ inputs.instrument }}_ticks.csv"
+
+      - name: Zip result
+        run: zip -9 "${{ inputs.instrument }}_ticks.zip" "${{ inputs.instrument }}_ticks.csv"
+
+      - name: Upload zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.instrument }}-ticks
+          path: ${{ inputs.instrument }}_ticks.zip
+          retention-days: 30
