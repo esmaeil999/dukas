@@ -33,12 +33,14 @@ def decompress_bi5(raw: bytes) -> bytes:
             filters=[{"id": lzma.FILTER_LZMA1, "preset": 9}],
         )
 
-def fetch_hour(instrument: str, dt: datetime, retries: int = 3):
-    """Fetch one hour of ticks. Returns list of (ms_offset, ask, bid, ask_vol, bid_vol)."""
+def fetch_hour(instrument: str, dt: datetime, retries: int = 6):
+    """Fetch one hour of ticks.
+    Returns list of (ms_offset, ask, bid, ask_vol, bid_vol), [] for no data, or None on failure."""
     url = (
-    f"https://datafeed.dukascopy.com/datafeed/{instrument}/"
-    f"{dt.year:04d}/{dt.month - 1:02d}/{dt.day:02d}/{dt.hour:02d}h_ticks.bi5"
-)
+        f"https://datafeed.dukascopy.com/datafeed/{instrument}/"
+        f"{dt.year:04d}/{dt.month - 1:02d}/{dt.day:02d}/{dt.hour:02d}h_ticks.bi5"
+    )
+    last_err = None
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -46,18 +48,18 @@ def fetch_hour(instrument: str, dt: datetime, retries: int = 3):
                 raw = resp.read()
             if not raw:
                 return []
-            data = decompress_bi5(raw)
-            return list(struct.iter_unpack(">IIIff", data))
+            return list(struct.iter_unpack(">IIIff", decompress_bi5(raw)))
         except urllib.error.HTTPError as e:
             if e.code == 404:
                 return []  # weekend / holiday / no data
-            if attempt == retries - 1:
-                raise
-        except Exception:
-            if attempt == retries - 1:
-                raise
-        time.sleep(2 * (attempt + 1))
-    return []
+            last_err = e
+        except Exception as e:
+            last_err = e
+        wait = min(2 ** attempt, 30)
+        print(f"  retry {attempt + 1}/{retries} {dt:%Y-%m-%d %H:%M} ({last_err})", flush=True)
+        time.sleep(wait)
+    print(f"  WARNING: skipped {dt:%Y-%m-%d %H:%M} after {retries} retries: {last_err}", flush=True)
+    return None
 
 def main():
     p = argparse.ArgumentParser()
@@ -73,27 +75,32 @@ def main():
     end = datetime.strptime(args.to, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
 
     total = 0
+    skipped = 0
     cursor = start
     with open(args.out, "w", buffering=1 << 20) as f:
         f.write("GmtTime,Bid,Ask,BidVolume,AskVolume\n")
         while cursor < end:
             ticks = fetch_hour(inst, cursor)
-            for ms, ask, bid, ask_vol, bid_vol in ticks:
-                ts = cursor + timedelta(milliseconds=ms)
-                if ts < start or ts >= end:
-                    continue
-                line = (
-                    f"{ts.strftime('%Y-%m-%d %H:%M:%S')}.{ts.microsecond // 1000:03d},"
-                    f"{fmt_price(bid, div)},{fmt_price(ask, div)},"
-                    f"{fmt_volume(bid_vol)},{fmt_volume(ask_vol)}\n"
-                )
-                f.write(line)
-                total += 1
-            print(f"hour: {cursor:%Y-%m-%d %H:%M} | ticks: {len(ticks)} | total: {total}", flush=True)
+            if ticks is None:
+                skipped += 1
+            else:
+                for ms, ask, bid, ask_vol, bid_vol in ticks:
+                    ts = cursor + timedelta(milliseconds=ms)
+                    if ts < start or ts >= end:
+                        continue
+                    f.write(
+                        f"{ts.strftime('%Y-%m-%d %H:%M:%S')}.{ts.microsecond // 1000:03d},"
+                        f"{fmt_price(bid, div)},{fmt_price(ask, div)},"
+                        f"{fmt_volume(bid_vol)},{fmt_volume(ask_vol)}\n"
+                    )
+                    total += 1
+            print(f"hour: {cursor:%Y-%m-%d %H:%M} | total: {total}", flush=True)
             cursor += timedelta(hours=1)
-            time.sleep(0.15)  # be polite to the datafeed
+            time.sleep(0.3)  # be polite to the datafeed
 
-    print(f"FINISHED. total ticks = {total}")
+    print(f"FINISHED. total ticks = {total}, skipped hours = {skipped}")
+    if skipped:
+        print("NOTE: some hours failed to download; re-run the same range to fill gaps.", file=sys.stderr)
 
 if __name__ == "__main__":
     sys.exit(main())
