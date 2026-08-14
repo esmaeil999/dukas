@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
 
-     - name: Download ticks and build CSV
+      - name: Download ticks and build CSV
   run: |
     python tick_exporter.py \
       --instrument "${{ inputs.instrument }}" \
