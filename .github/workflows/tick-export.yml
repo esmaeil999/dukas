@@ -8,10 +8,10 @@ on:
         default: "EURUSD"
       from:
         description: 'Start, GMT — "YYYY-MM-DD HH:mm:ss"'
-        default: "2015-01-01 00:00:00"
+        default: "2025-01-01 00:00:00"
       to:
         description: 'End, GMT — "YYYY-MM-DD HH:mm:ss"'
-        default: "2015-02-02 00:00:00"
+        default: "2025-01-02 00:00:00"
 
 jobs:
   export:
@@ -23,7 +23,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Download ticks and build CSV
+     - name: Download ticks and build CSV
   run: |
     python tick_exporter.py \
       --instrument "${{ inputs.instrument }}" \
