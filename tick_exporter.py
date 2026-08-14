@@ -36,9 +36,9 @@ def decompress_bi5(raw: bytes) -> bytes:
 def fetch_hour(instrument: str, dt: datetime, retries: int = 3):
     """Fetch one hour of ticks. Returns list of (ms_offset, ask, bid, ask_vol, bid_vol)."""
     url = (
-        f"https://datafeed.dukascopy.com/datafeed/{instrument}/"
-        f"{dt.year:04d}/{dt.month - 1:02d}/{dt.day:02d}/{dt.hour:02d}h_ticks.bi5"
-    )
+    f"https://datafeed.dukascopy.com/datafeed/{instrument}/"
+    f"{dt.year:04d}/{dt.month - 1:02d}/{dt.day:02d}/{dt.hour:02d}h_ticks.bi5"
+)
     for attempt in range(retries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
